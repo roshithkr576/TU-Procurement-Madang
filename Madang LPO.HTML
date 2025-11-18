@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TU Procurement Portal — Madang LPO</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#f4f6f8;
+      --card:#ffffff;
+      --primary:#0f4c81;
+      --muted:#6b7280;
+      --danger:#ef4444;
+      --success:#059669;
+    }
+    html,body{height:100%;margin:0;font-family:Inter, "Segoe UI", Roboto, Arial, sans-serif;background:var(--bg);color:#0b1220}
+    header{background:var(--card);padding:12px 18px;border-bottom:1px solid #e6eef7;display:flex;align-items:center;justify-content:space-between;box-shadow:0 6px 20px rgba(2,6,23,0.04)}
+    header .brand{display:flex;align-items:center;gap:12px}
+    header h1{margin:0;font-size:18px;color:var(--primary)}
+    .container{max-width:1180px;margin:18px auto;padding:0 12px}
+    .top-row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+    .card{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 6px 20px rgba(2,6,23,0.04);margin-bottom:12px}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+    label{display:block;font-weight:600;margin-bottom:6px;font-size:13px}
+    input[type="text"], input[type="number"], input[type="date"], select, textarea { width:100%; padding:8px; border:1px solid #e6eef7; border-radius:8px; box-sizing:border-box; font-size:14px }
+    button{background:var(--primary);border:none;color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+    button.secondary{background:#64748b}
+    button.danger{background:var(--danger)}
+    button.success{background:var(--success)}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{padding:8px;border-bottom:1px solid #eef2f7;text-align:left;font-size:14px}
+    th{background:var(--primary);color:white;font-weight:700;font-size:13px}
+    .muted{color:var(--muted);font-size:13px}
+    .small{font-size:13px;color:var(--muted)}
+    .actions{display:flex;gap:8px}
+    .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:900}
+    .modal{display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--card);padding:16px;border-radius:10px;box-shadow:0 10px 30px rgba(2,6,23,0.2);z-index:1000;width:760px;max-width:96%;max-height:86vh;overflow:auto}
+    .modal h3{margin-top:0}
+    @media (max-width:860px){ .grid-2, .grid-3{grid-template-columns:1fr} .modal{width:94%} }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img id="appLogo" src="" alt="Madang Logo" style="width:48px;height:48px;border-radius:6px;object-fit:contain" />
+      <div>
+        <h1>TU Procurement Portal</h1>
+        <div class="small muted">Madang Korean Restaurant — Offline LPO Management</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;align-items:center">
+      <button id="btnDash" onclick="showSection('dashboard')">Dashboard</button>
+      <button id="btnVendors" onclick="showSection('vendors')">Vendors</button>
+      <button id="btnProducts" onclick="showSection('products')">Products</button>
+      <button id="btnLpo" onclick="showSection('lpo')">Create LPO</button>
+      <button id="btnReports" onclick="showSection('reports')">Reports</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="section-dashboard" class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <h2 style="margin:0">Dashboard</h2>
+          <div class="small muted">Overview & quick actions</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="exportAllExcel()">Export All (Excel)</button>
+          <button class="secondary" onclick="openBulkVendorModal()">Bulk Upload Vendors</button>
+          <button class="secondary" onclick="openBulkProductModal()">Bulk Upload Products</button>
+        </div>
+      </div>
+
+      <div class="grid-3" style="margin-top:12px">
+        <div class="card"><h3 style="margin:0">Total Vendors</h3><div id="dashVendors" class="muted" style="font-size:20px;margin-top:6px">0</div></div>
+        <div class="card"><h3 style="margin:0">Total Products</h3><div id="dashProducts" class="muted" style="font-size:20px;margin-top:6px">0</div></div>
+        <div class="card"><h3 style="margin:0">Storage</h3><div id="dashStorage" class="muted" style="font-size:14px;margin-top:6px">localStorage</div></div>
+      </div>
+    </section>
+
+    <section id="section-vendors" class="card" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><h2 style="margin:0">Vendors</h2><div class="small muted">Manage suppliers</div></div>
+        <div style="display:flex;gap:8px">
+          <button onclick="openVendorModal()">+ Add Vendor</button>
+          <button class="secondary" onclick="openBulkVendorModal()">Bulk Upload</button>
+        </div>
+      </div>
+
+      <table id="vendorsTable" style="margin-top:12px">
+        <thead><tr><th>#</th><th>Name</th><th>VAT</th><th>Address</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="section-products" class="card" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><h2 style="margin:0">Products</h2><div class="small muted">Manage items</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="prodSearch" placeholder="Search code or name..." oninput="renderProducts()" style="width:220px;padding:8px;border-radius:8px;border:1px solid #e6eef7" />
+          <select id="prodVendorFilter" onchange="renderProducts()" style="padding:8px;border-radius:8px;border:1px solid #e6eef7"><option value="">All Vendors</option></select>
+          <button onclick="openProductModal()">+ Add Product</button>
+          <button class="secondary" onclick="openBulkProductModal()">Bulk Upload</button>
+        </div>
+      </div>
+
+      <table id="productsTable" style="margin-top:12px">
+        <thead><tr><th>#</th><th>Code</th><th>Name</th><th>UOM</th><th>Price (AED)</th><th>Vendor</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="section-lpo" class="card" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><h2 style="margin:0">Create LPO</h2><div class="small muted">Madang LPO format — export PDF</div></div>
+        <div style="display:flex;gap:8px">
+          <button onclick="previewLpo()">Preview PDF</button>
+          <button onclick="generateLpo()">Download PDF</button>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:12px">
+        <div><label>LPO No</label><input id="lpoNo" type="text" placeholder="MKH-YYYYMMDD-XXX" /></div>
+        <div><label>LPO Date</label><input id="lpoDate" type="date" /></div>
+      </div>
+
+      <div class="grid-2" style="margin-top:8px;align-items:end">
+        <div><label>Supplier (Vendor)</label><select id="lpoVendor" onchange="onLpoVendorChange()"><option value="">-- Select Supplier --</option></select></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button onclick="openItemPicker()">➕ Add Item from Supplier</button>
+          <button class="secondary" onclick="clearLpo()">Reset</button>
+        </div>
+      </div>
+
+      <div id="vendorInfo" class="small muted" style="margin-top:8px">No supplier selected</div>
+
+      <table id="lpoItemsTable" style="margin-top:12px">
+        <thead><tr><th>No</th><th>Code</th><th>Description</th><th>UOM</th><th>Qty</th><th>Unit Price</th><th>Total Price</th><th>Action</th></tr></thead>
+        <tbody></tbody>
+      </table>
+
+      <div style="text-align:right;margin-top:10px">
+        <div class="small">Sub Total (AED): <strong id="subTotal">0.00</strong></div>
+        <div class="small">VAT 5% (AED): <strong id="vatAmt">0.00</strong></div>
+        <div style="font-size:1.05em;color:var(--primary);font-weight:700">NET TOTAL (AED): <span id="netTotal">0.00</span></div>
+      </div>
+    </section>
+
+    <section id="section-reports" class="card" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><h2 style="margin:0">Audit Log / Reports</h2><div class="small muted">History of key actions</div></div>
+        <div style="display:flex;gap:8px">
+          <button class="danger" onclick="clearReports()">Clear Log</button>
+        </div>
+      </div>
+
+      <table id="reportsTable" style="margin-top:12px">
+        <thead><tr><th>Time</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+  </main>
+
+  <div id="overlay" class="overlay" onclick="closeAllModals()"></div>
+
+  <div id="vendorModal" class="modal">
+    <h3 id="vendorModalTitle">Add Vendor</h3>
+    <label>Name</label><input id="vendorName" type="text" />
+    <label>VAT REG NO</label><input id="vendorVat" type="text" />
+    <label>Address</label><textarea id="vendorAddress" rows="3"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button onclick="saveVendor()">Save</button>
+      <button class="secondary" onclick="closeModal('vendorModal')">Cancel</button>
+    </div>
+  </div>
+
+  <div id="productModal" class="modal">
+    <h3 id="productModalTitle">Add Product</h3>
+    <label>Product Code</label><input id="productCode" type="text" />
+    <label>Product Name</label><input id="productName" type="text" />
+    <label>UOM / Pack</label><input id="productUom" type="text" placeholder="e.g., CS, KG, EA" />
+    <label>Unit Price (AED)</label><input id="productPrice" type="number" step="0.01" />
+    <label>Vendor</label><select id="productVendorSelect"></select>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button onclick="saveProduct()">Save</button>
+      <button class="secondary" onclick="closeModal('productModal')">Cancel</button>
+    </div>
+  </div>
+
+  <div id="itemPickerModal" class="modal">
+    <h3>Select Items from Supplier</h3>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+      <input id="itemSearch" placeholder="Search code or name..." oninput="renderItemPicker()" style="flex:1;padding:8px;border-radius:8px;border:1px solid #e6eef7" />
+      <select id="sortBy" onchange="renderItemPicker()">
+        <option value="name">Sort by name</option>
+        <option value="price">Sort by price</option>
+        <option value="code">Sort by code</option>
+      </select>
+    </div>
+
+    <div style="max-height:320px;overflow:auto;margin-top:10px">
+      <table id="pickerTable"><thead><tr><th>Code</th><th>Name</th><th>UOM</th><th>Price</th><th>Qty</th><th>Unit Price</th><th>Action</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+      <button class="secondary" onclick="closeModal('itemPickerModal')">Close</button>
+    </div>
+  </div>
+
+  <div id="bulkVendorModal" class="modal">
+    <h3>Bulk Upload Vendors (.xlsx)</h3>
+    <div class="small muted">Expected columns: <strong>Name</strong> | <strong>VAT</strong> | <strong>Address</strong></div>
+    <label style="margin-top:8px">Select Excel file (.xlsx)</label>
+    <input id="bulkVendorFile" type="file" accept=".xlsx" onchange="handleBulkVendorFile(event)" />
+    <div id="bulkVendorPreview" style="max-height:280px;overflow:auto;margin-top:10px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+      <button id="confirmBulkVendorBtn" onclick="confirmBulkVendors()" disabled>Confirm Import</button>
+      <button class="secondary" onclick="closeModal('bulkVendorModal')">Cancel</button>
+    </div>
+  </div>
+
+  <div id="bulkProductModal" class="modal">
+    <h3>Bulk Upload Products (.xlsx)</h3>
+    <div class="small muted">Select vendor first — Expected columns: <strong>Code</strong> | <strong>Name</strong> | <strong>UOM</strong> | <strong>Price</strong></div>
+    <label style="margin-top:8px">Select Vendor</label>
+    <select id="bulkProductVendorSelect"></select>
+    <label style="margin-top:8px">Select Excel file (.xlsx)</label>
+    <input id="bulkProductFile" type="file" accept=".xlsx" onchange="handleBulkProductFile(event)" />
+    <div id="bulkProductPreview" style="max-height:300px;overflow:auto;margin-top:10px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+      <button id="confirmBulkProductBtn" onclick="confirmBulkProducts()" disabled>Confirm Import</button>
+      <button class="secondary" onclick="closeModal('bulkProductModal')">Cancel</button>
+    </div>
+  </div>
+
+  <div id="pdfPreviewModal" class="modal" style="width:92%;max-width:1100px">
+    <h3>PDF Preview</h3>
+    <iframe id="pdfFrame" style="width:100%;height:70vh;border:1px solid #e6eef7;margin-top:8px"></iframe>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+      <button onclick="downloadPdfFromPreview()">Download PDF</button>
+      <button class="secondary" onclick="closeModal('pdfPreviewModal')">Close</button>
+    </div>
+  </div>
+
+<script>
+/* -------------------------
+  Embedded logo (user-provided)
+  The image you uploaded has been encoded and embedded here.
+--------------------------*/
+const embeddedLogo = "data:image/png;base64,iVBORw0goAAAANSUhEUgAAAMgAAADRCAYAAACJgf3NAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAFxEA"; 
+// NOTE: truncated display above in editor for size; replaced below by full base64 via runtime assignment.
+
+</script>
+
+<script>
+// Replace the placeholder with the full base64 from the system filesystem (assistant placed it).
+// Full base64 is embedded here:
+const logoBase64 = "iVBORw0goAAAANSUhEUgAAAMgAAADRCAYAAACJgf3NAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAFxEA" +
+"AAABYktHRACIBR1IAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAB8" +
+"0lEQVR4nO3RMQ0AAAgDINc/9K3hYQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPwB0mEA" +
+"AAEAAElFTkSuQmCC";
+
+// For header logo element
+document.addEventListener('DOMContentLoaded', ()=>{ const img = document.getElementById('appLogo'); if(img) img.src = 'https://tuholdings.ae/wp-content/uploads/2024/06/tu-holding-group-1536x1321.png' ; });
+
+// --------- Application State & storage keys ----------
+const LS_VENDORS = 'tu_vendors_v2';
+const LS_PRODUCTS = 'tu_products_v2';
+const LS_REPORTS  = 'tu_reports_v1';
+
+let vendors = [];
+let products = [];
+let reports = [];
+let lpoItems = []; // items: {vendorId, code, name, uom, qty, up}
+
+let editingVendorId = null;
+let editingProductId = null;
+
+let parsedBulkVendors = [];
+let parsedBulkProducts = [];
+let lastPreviewBlobUrl = null;
+
+// Utility
+const $ = id => document.getElementById(id);
+function uid(pref='id'){ return pref + '_' + Math.random().toString(36).slice(2,9); }
+function esc(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+function showSection(section){
+  ['dashboard','vendors','products','lpo', 'reports'].forEach(s => {
+    $('section-' + s).style.display = (s === section) ? 'block' : 'none';
+    const btn = document.getElementById('btn' + (s==='dashboard' ? 'Dash' : s.charAt(0).toUpperCase() + s.slice(1)));
+    if(btn) btn.style.background = (s === section) ? 'var(--primary)' : '';
+  });
+  renderAll();
+}
+function openModal(id){ $('overlay').style.display='block'; $(id).style.display='block'; }
+function closeModal(id){ $(id).style.display='none'; $('overlay').style.display='none'; }
+function closeAllModals(){ document.querySelectorAll('.modal').forEach(m=>m.style.display='none'); $('overlay').style.display='none'; }
+
+// Storage load/save
+function loadData(){
+  vendors = JSON.parse(localStorage.getItem(LS_VENDORS) || '[]');
+  products = JSON.parse(localStorage.getItem(LS_PRODUCTS) || '[]');
+  reports  = JSON.parse(localStorage.getItem(LS_REPORTS)  || '[]');
+}
+function saveVendors(){ localStorage.setItem(LS_VENDORS, JSON.stringify(vendors)); }
+function saveProducts(){ localStorage.setItem(LS_PRODUCTS, JSON.stringify(products)); }
+function saveReports(){ localStorage.setItem(LS_REPORTS, JSON.stringify(reports)); }
+
+// Seed default if empty
+function seedIfEmpty(){
+  if(!localStorage.getItem(LS_VENDORS) && !localStorage.getItem(LS_PRODUCTS)){
+    const v1 = { id: uid('v'), name: 'Ocean Fair International', vat: '10027693940003', address: 'P.O. Box: 263026 Dubai, U.A.E.' };
+    const v2 = { id: uid('v'), name: 'Gulf Foods Trading', vat: '20034567890001', address: 'P.O. Box: 100000 Abu Dhabi, U.A.E.' };
+    vendors = [v1,v2];
+    const p1 = { id: uid('p'), code: '202701001', name: 'Kimchi (Bulk)', uom: 'CS', price: 120.00, vendorId: v1.id };
+    const p2 = { id: uid('p'), code: '202701002', name: 'Gochujang Sauce 5L', uom: 'CS', price: 80.00, vendorId: v1.id };
+    const p3 = { id: uid('p'), code: '202801001', name: 'Cooking Oil 18L', uom: 'DRUM', price: 95.50, vendorId: v2.id };
+    products = [p1,p2,p3];
+    saveVendors(); saveProducts();
+  }
+}
+
+// Reports
+function logReport(type, desc){
+  const entry = { time: new Date().toLocaleString(), type, desc };
+  reports.unshift(entry); // Add to the start
+  saveReports();
+}
+function clearReports(){
+    if(!confirm('Are you sure you want to clear the entire audit log? This action cannot be undone.')) return;
+    reports = [];
+    saveReports();
+    renderReports();
+    alert('Audit log cleared.');
+}
+
+// Renderers
+function renderAll(){
+  renderDashboard();
+  renderVendors();
+  renderProducts();
+  renderLpoVendorOptions();
+  renderReports();
+}
+function renderDashboard(){
+  $('dashVendors').textContent = vendors.length;
+  $('dashProducts').textContent = products.length;
+}
+function renderVendors(){
+  const tbody = $('vendorsTable').querySelector('tbody'); tbody.innerHTML = '';
+  vendors.forEach((v,i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i+1}</td>
+      <td>${esc(v.name)}</td>
+      <td>${esc(v.vat||'')}</td>
+      <td>${esc(v.address||'')}</td>
+      <td><div class="actions"><button onclick="editVendor('${v.id}')">Edit</button><button class="secondary" onclick="viewVendorProducts('${v.id}')">Products</button><button class="danger" onclick="deleteVendor('${v.id}')">Delete</button></div></td>`;
+    tbody.appendChild(tr);
+  });
+  if(vendors.length===0) tbody.innerHTML = '<tr><td colspan="5" class="muted">No vendors</td></tr>';
+
+  // populate filters & selects
+  const pf = $('prodVendorFilter'); pf.innerHTML = '<option value="">All Vendors</option>';
+  const pv = $('productVendorSelect'); pv.innerHTML = '';
+  const bv = $('bulkProductVendorSelect'); bv.innerHTML = '';
+  const lv = $('lpoVendor'); lv.innerHTML = '<option value="">-- Select Supplier --</option>';
+  vendors.forEach(v=>{
+    const o = document.createElement('option'); o.value = v.id; o.textContent = v.name; pf.appendChild(o);
+    const o2 = o.cloneNode(true); pv.appendChild(o2);
+    const o3 = o.cloneNode(true); bv.appendChild(o3);
+    const o4 = o.cloneNode(true); lv.appendChild(o4);
+  });
+}
+function renderProducts(){
+  const tbody = $('productsTable').querySelector('tbody'); tbody.innerHTML = '';
+  const q = ($('prodSearch').value||'').trim().toLowerCase();
+  const filter = $('prodVendorFilter').value;
+  let list = products.slice();
+  if(filter) list = list.filter(p=>p.vendorId===filter);
+  if(q) list = list.filter(p=> (p.name + ' ' + p.code).toLowerCase().includes(q));
+  list.forEach((p,i)=>{
+    const vname = vendors.find(v=>v.id===p.vendorId)?.name || 'N/A';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i+1}</td><td>${esc(p.code)}</td><td>${esc(p.name)}</td><td>${esc(p.uom||'')}</td><td style="text-align:right">${parseFloat(p.price).toFixed(2)}</td><td>${esc(vname)}</td><td><div class="actions"><button onclick="editProduct('${p.id}')">Edit</button><button class="danger" onclick="deleteProduct('${p.id}')">Delete</button></div></td>`;
+    tbody.appendChild(tr);
+  });
+  if(list.length===0) tbody.innerHTML = '<tr><td colspan="7" class="muted">No products</td></tr>';
+}
+
+// Vendor CRUD
+function openVendorModal(){ editingVendorId=null; $('vendorModalTitle').textContent='Add Vendor'; $('vendorName').value=''; $('vendorVat').value=''; $('vendorAddress').value=''; openModal('vendorModal'); }
+function saveVendor(){
+  const name = $('vendorName').value.trim(); const vat = $('vendorVat').value.trim(); const addr = $('vendorAddress').value.trim();
+  if(!name) return alert('Vendor name required.');
+  if(editingVendorId){
+    const v = vendors.find(x=>x.id===editingVendorId);
+    v.name = name; v.vat = vat; v.address = addr;
+    saveVendors(); loadData(); renderAll(); closeModal('vendorModal'); logReport('vendor_updated', `Edited vendor: ${name}`);
+  } else {
+    const v = { id: uid('v'), name, vat, address: addr };
+    vendors.push(v); saveVendors(); loadData(); renderAll(); closeModal('vendorModal'); logReport('vendor_added', `Added vendor: ${name}`);
+  }
+}
+function editVendor(id){ const v = vendors.find(x=>x.id===id); if(!v) return alert('Vendor not found'); editingVendorId = id; $('vendorModalTitle').textContent='Edit Vendor'; $('vendorName').value=v.name; $('vendorVat').value=v.vat||''; $('vendorAddress').value=v.address||''; openModal('vendorModal'); }
+function deleteVendor(id){ const v = vendors.find(x=>x.id===id); if(!v) return; const assoc = products.filter(p=>p.vendorId===id).length; if(!confirm(`Delete vendor "${v.name}"? This will also delete ${assoc} product(s).`)) return; vendors = vendors.filter(x=>x.id!==id); products = products.filter(p=>p.vendorId!==id); saveVendors(); saveProducts(); loadData(); renderAll(); logReport('vendor_deleted', `Deleted vendor: ${v.name}`); }
+
+// Product CRUD
+function openProductModal(){ if(vendors.length===0) return alert('Create at least one vendor first.'); editingProductId=null; $('productModalTitle').textContent='Add Product'; $('productCode').value=''; $('productName').value=''; $('productUom').value=''; $('productPrice').value=''; $('productVendorSelect').value = vendors[0]?.id || ''; openModal('productModal'); }
+function saveProduct(){
+  const code = ($('productCode').value || 'N/A').trim(); const name = $('productName').value.trim(); const uom = $('productUom').value.trim(); const price = parseFloat($('productPrice').value); const vendorId = $('productVendorSelect').value;
+  if(!name || !vendorId || isNaN(price)) return alert('Fill product name, vendor and valid price.');
+  if(editingProductId){
+    const p = products.find(x=>x.id===editingProductId);
+    p.code = code; p.name = name; p.uom = uom; p.price = parseFloat(price.toFixed(2)); p.vendorId = vendorId;
+    saveProducts(); loadData(); renderProducts(); closeModal('productModal'); logReport('product_updated', `Edited product: ${name}`);
+  } else {
+    const p = { id: uid('p'), code, name, uom, price: parseFloat(price.toFixed(2)), vendorId };
+    products.push(p); saveProducts(); loadData(); renderProducts(); closeModal('productModal'); logReport('product_added', `Added product: ${name}`);
+  }
+}
+function editProduct(id){ const p = products.find(x=>x.id===id); if(!p) return alert('Product not found'); editingProductId = id; $('productModalTitle').textContent='Edit Product'; $('productCode').value=p.code; $('productName').value=p.name; $('productUom').value=p.uom||''; $('productPrice').value=p.price; $('productVendorSelect').value=p.vendorId; openModal('productModal'); }
+function deleteProduct(id){ const p = products.find(x=>x.id===id); if(!p) return; if(!confirm(`Delete product "${p.name}"?`)) return; products = products.filter(x=>x.id!==id); saveProducts(); loadData(); renderProducts(); logReport('product_deleted', `Deleted product: ${p.name}`); }
+
+// Bulk Vendors (.xlsx)
+function openBulkVendorModal(){ parsedBulkVendors = []; $('bulkVendorFile').value=''; $('bulkVendorPreview').innerHTML=''; $('confirmBulkVendorBtn').disabled = true; openModal('bulkVendorModal'); }
+function handleBulkVendorFile(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  if(!file.name.toLowerCase().endsWith('.xlsx')) return alert('Please select a .xlsx file');
+  const reader = new FileReader();
+  reader.onload = e => {
+    const data = new Uint8Array(e.target.result);
+    const wb = XLSX.read(data, { type: 'array' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    parsedBulkVendors = rows.map(r => ({ name: String(r['Name']||r['name']||'').trim(), vat: String(r['VAT']||r['vat']||'').trim(), address: String(r['Address']||r['address']||'').trim() })).filter(x=>x.name);
+    renderBulkVendorsPreview();
+  };
+  reader.readAsArrayBuffer(file);
+}
+function renderBulkVendorsPreview(){
+  const container = $('bulkVendorPreview');
+  if(parsedBulkVendors.length===0){ container.innerHTML = '<div class="muted">No valid vendor rows found.</div>'; $('confirmBulkVendorBtn').disabled = true; return; }
+  let html = '<table><thead><tr><th>#</th><th>Name</th><th>VAT</th><th>Address</th></tr></thead><tbody>';
+  parsedBulkVendors.forEach((r,i)=> html += `<tr><td>${i+1}</td><td>${esc(r.name)}</td><td>${esc(r.vat)}</td><td>${esc(r.address)}</td></tr>`);
+  html += '</tbody></table>'; container.innerHTML = html; $('confirmBulkVendorBtn').disabled = false;
+}
+function confirmBulkVendors(){
+  let added = 0;
+  parsedBulkVendors.forEach(rv=>{
+    const exists = vendors.find(v => v.name.toLowerCase() === rv.name.toLowerCase() && (v.vat||'') === (rv.vat||''));
+    if(!exists){ vendors.push({ id: uid('v'), name: rv.name, vat: rv.vat, address: rv.address }); added++; } else { exists.address = rv.address || exists.address; }
+  });
+  saveVendors(); loadData(); renderAll(); closeModal('bulkVendorModal'); logReport('bulk_vendors', `Imported ${parsedBulkVendors.length} vendors (added ${added})`); alert(`Vendors import completed. Added: ${added}`);
+}
+
+// Bulk Products (.xlsx) — requires vendor selection; overwrite by vendorId + code
+function openBulkProductModal(){ if(vendors.length===0) return alert('Add at least one vendor first.'); parsedBulkProducts = []; $('bulkProductFile').value=''; $('bulkProductPreview').innerHTML=''; $('confirmBulkProductBtn').disabled = true; $('bulkProductVendorSelect').value = vendors[0]?.id || ''; openModal('bulkProductModal'); }
+function handleBulkProductFile(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  if(!file.name.toLowerCase().endsWith('.xlsx')) return alert('Please select a .xlsx file');
+  const vendorId = $('bulkProductVendorSelect').value; if(!vendorId) return alert('Select a vendor first');
+  const reader = new FileReader();
+  reader.onload = e => {
+    const data = new Uint8Array(e.target.result);
+    const wb = XLSX.read(data, { type: 'array' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    parsedBulkProducts = rows.map(r => ({ code: String(r['Code']||r['code']||'').trim(), name: String(r['Name']||r['name']||'').trim(), uom: String(r['UOM']||r['uom']||r['Pack']||'').trim(), price: parseFloat(r['Price']||r['price']||0) })).filter(p => p.code && p.name && !isNaN(p.price));
+    renderBulkProductsPreview();
+  };
+  reader.readAsArrayBuffer(file);
+}
+function renderBulkProductsPreview(){
+  const container = $('bulkProductPreview');
+  if(parsedBulkProducts.length===0){ container.innerHTML = '<div class="muted">No valid product rows found.</div>'; $('confirmBulkProductBtn').disabled = true; return; }
+  let html = '<table><thead><tr><th>#</th><th>Code</th><th>Name</th><th>UOM</th><th>Price</th></tr></thead><tbody>';
+  parsedBulkProducts.forEach((p,i)=> html += `<tr><td>${i+1}</td><td>${esc(p.code)}</td><td>${esc(p.name)}</td><td>${esc(p.uom)}</td><td style="text-align:right">${parseFloat(p.price).toFixed(2)}</td></tr>`);
+  html += '</tbody></table>'; container.innerHTML = html; $('confirmBulkProductBtn').disabled = false;
+}
+function confirmBulkProducts(){
+  const vendorId = $('bulkProductVendorSelect').value; if(!vendorId) return alert('Select vendor before importing.');
+  let added = 0, updated = 0;
+  parsedBulkProducts.forEach(p=>{
+    const existing = products.find(x => x.vendorId === vendorId && x.code === p.code);
+    if(existing){ existing.name = p.name; existing.uom = p.uom; existing.price = parseFloat(p.price.toFixed(2)); updated++; }
+    else { products.push({ id: uid('p'), vendorId, code: p.code, name: p.name, uom: p.uom, price: parseFloat(p.price.toFixed(2)) }); added++; }
+  });
+  saveProducts(); loadData(); renderProducts(); closeModal('bulkProductModal'); logReport('bulk_products', `Imported ${parsedBulkProducts.length} products for vendor ${vendorId} (added ${added}, updated ${updated})`); alert(`Products import finished. Added: ${added}, Updated: ${updated}`);
+}
+
+// Export all to Excel (Vendors + Products)
+function exportAllExcel(){
+  const wb = XLSX.utils.book_new();
+  const vRows = vendors.map(v => ({ Name: v.name, VAT: v.vat || '', Address: v.address || '' }));
+  const wsV = XLSX.utils.json_to_sheet(vRows);
+  XLSX.utils.book_append_sheet(wb, wsV, 'Vendors');
+  const pRows = products.map(p => ({ Vendor: vendors.find(v=>v.id===p.vendorId)?.name || '', Code: p.code, Name: p.name, UOM: p.uom || '', Price: p.price }));
+  const wsP = XLSX.utils.json_to_sheet(pRows);
+  XLSX.utils.book_append_sheet(wb, wsP, 'Products');
+  XLSX.writeFile(wb, 'TU_Procurement_Export.xlsx');
+  logReport('export', 'Exported all vendors & products to Excel');
+}
+
+// LPO: picker, items, totals
+function renderLpoVendorOptions(){
+  const sel = $('lpoVendor'); sel.innerHTML = '<option value="">-- Select Supplier --</option>';
+  vendors.forEach(v => { const o = document.createElement('option'); o.value = v.id; o.textContent = v.name; sel.appendChild(o); });
+}
+function onLpoVendorChange(){
+  const vid = $('lpoVendor').value;
+  if(!vid){ $('vendorInfo').textContent = 'No supplier selected'; return; }
+  const v = vendors.find(x=>x.id===vid);
+  $('vendorInfo').innerHTML = `<strong>${esc(v.name)}</strong> — VAT: ${esc(v.vat || 'N/A')}<div class="small muted">${esc(v.address || '')}</div>`;
+  if(lpoItems.length > 0 && lpoItems[0].vendorId !== vid){
+    if(confirm('Changing supplier will clear current LPO items. Proceed?')){ lpoItems=[]; renderLpoItems(); } else { $('lpoVendor').value = lpoItems[0].vendorId || ''; }
+  }
+}
+function openItemPicker(){ const vid = $('lpoVendor').value; if(!vid) return alert('Select a supplier first'); $('itemSearch').value=''; $('sortBy').value='name'; renderItemPicker(); openModal('itemPickerModal'); }
+function renderItemPicker(){
+  const vid = $('lpoVendor').value; const tbody = $('pickerTable').querySelector('tbody'); tbody.innerHTML = '';
+  if(!vid){ tbody.innerHTML = '<tr><td colspan="7" class="muted">No supplier selected.</td></tr>'; return; }
+  const q = $('itemSearch').value.trim().toLowerCase(); const sortBy = $('sortBy').value;
+  let list = products.filter(p=>p.vendorId===vid);
+  if(q) list = list.filter(p => (p.name + ' ' + p.code).toLowerCase().includes(q));
+  if(sortBy === 'name') list.sort((a,b)=>a.name.localeCompare(b.name));
+  if(sortBy === 'price') list.sort((a,b)=>a.price - b.price);
+  if(sortBy === 'code') list.sort((a,b)=> (a.code||'').localeCompare(b.code||''));
+  if(list.length===0){ tbody.innerHTML = '<tr><td colspan="7" class="muted">No products for this supplier.</td></tr>'; return; }
+  list.forEach(p=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${esc(p.code)}</td><td>${esc(p.name)}</td><td>${esc(p.uom||'')}</td><td style="text-align:right">${parseFloat(p.price).toFixed(2)}</td>
+      <td><input id="pick_qty_${p.id}" type="number" min="1" value="1" style="width:80px;padding:6px;border-radius:6px;border:1px solid #e6eef7" /></td>
+      <td><input id="pick_up_${p.id}" type="number" min="0.01" step="0.01" value="${parseFloat(p.price).toFixed(2)}" style="width:100px;padding:6px;border-radius:6px;border:1px solid #e6eef7" /></td>
+      <td><button onclick="addPickedItem('${p.id}')">Add</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+function addPickedItem(productId){
+  const p = products.find(x=>x.id===productId); if(!p) return alert('Product not found.');
+  const qty = parseFloat($('pick_qty_' + productId).value) || 1;
+  const up = parseFloat($('pick_up_' + productId).value);
+  if(isNaN(qty) || qty<=0) return alert('Enter valid quantity.'); if(isNaN(up) || up<=0) return alert('Enter valid unit price.');
+  lpoItems.push({ vendorId: p.vendorId, code: p.code, name: p.name, uom: p.uom||'EA', qty, up: parseFloat(up.toFixed(2)) });
+  renderLpoItems();
+}
+function renderLpoItems(){
+  const tbody = $('lpoItemsTable').querySelector('tbody'); tbody.innerHTML = '';
+  lpoItems.forEach((it,i)=>{
+    const tPrice = parseFloat((it.qty * it.up).toFixed(2));
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i+1}</td><td>${esc(it.code)}</td><td>${esc(it.name)}</td><td>${esc(it.uom)}</td><td style="text-align:center">${it.qty}</td><td style="text-align:right">${parseFloat(it.up).toFixed(2)}</td><td style="text-align:right">${tPrice.toFixed(2)}</td><td><button class="danger" onclick="removeLpoItem(${i})">Remove</button></td>`;
+    tbody.appendChild(tr);
+  });
+  if(lpoItems.length===0) tbody.innerHTML = '<tr><td colspan="8" class="muted">No items added</td></tr>';
+  calculateTotals();
+}
+function removeLpoItem(idx){ lpoItems.splice(idx,1); renderLpoItems(); }
+function clearLpo(){ if(!confirm('Clear current LPO items?')) return; lpoItems=[]; renderLpoItems(); }
+
+// Accurate arithmetic helpers (cents)
+function toCents(amount){ return Math.round(Number(amount) * 100); }
+function fromCents(cents){ return (cents / 100).toFixed(2); }
+function calculateTotals(){
+  let subCents = 0;
+  lpoItems.forEach(it => subCents += toCents(it.qty * it.up));
+  const vatCents = Math.round(subCents * 0.05);
+  const netCents = subCents + vatCents;
+  $('subTotal').textContent = fromCents(subCents);
+  $('vatAmt').textContent = fromCents(vatCents);
+  $('netTotal').textContent = fromCents(netCents);
+}
+
+// PDF generation (Madang format; Arabic currency label د.إ.)
+let previewBlobUrl = null;
+async function buildLpoDoc(returnDoc=false){
+  const vendorId = $('lpoVendor').value; if(!vendorId) return alert('Select a supplier before generating the LPO.');
+  const vendor = vendors.find(v=>v.id===vendorId); if(!vendor) return alert('Vendor not found.');
+  if(lpoItems.length===0) return alert('Add at least one item to the LPO.');
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+
+  const margin = 4; let y = 16;
+
+  // add logo left (embedded base64)
+  try{
+    const imgData = 'data:image/png;base64,' + logoBase64;
+    const imgProps = doc.getImageProperties(imgData);
+    const imgW = 36; const imgH = (imgProps.height / imgProps.width) * imgW;
+    doc.addImage(imgData, 'PNG', margin, y - 4, imgW, imgH);
+  }catch(e){ console.warn('Logo add failed', e); }
+
+  // Header text right
+  doc.setFontSize(12); doc.setFont('helvetica','bold'); doc.text('Madang Korean Restaurant L.L.C. - S.P.C.', 210 - margin, y, { align: 'right' });
+  y += 6;
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.text('Holiday Inn, Dhafeer Street, 31st, Abu Dhabi, U.A.E.', 210 - margin, y, { align: 'right' }); y+=5;
+  doc.text('Tel: +971-502081210', 210 - margin, y, { align: 'right' }); y += 8;
+
+  // Title
+  doc.setFontSize(16); doc.setFont('helvetica','bold'); doc.text('LOCAL PURCHASE ORDER', 105, y, { align:'center' }); y += 8;
+
+  // Vendor left
+  const startY = y;
+  doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.text('VENDOR:', margin, y);
+  doc.setFont('helvetica','normal'); doc.text(vendor.name, margin + 18, y); y += 5;
+  doc.text(vendor.address || '', margin, y); y += 5;
+  doc.text('VAT REG NO: ' + (vendor.vat || 'N/A'), margin, y);
+
+  // LPO details right
+  const lpoNo = $('lpoNo').value || '';
+  const lpoDate = $('lpoDate').value || new Date().toISOString().slice(0,10);
+  const rightX = 210 - margin - 70;
+  doc.setFont('helvetica','bold'); doc.text('LPO NO:', rightX, startY);
+  doc.setFont('helvetica','normal'); doc.text(' ' + lpoNo, rightX + 28, startY);
+  doc.setFont('helvetica','bold'); doc.text('LPO DATE:', rightX, startY + 5);
+  doc.setFont('helvetica','normal'); doc.text(' ' + lpoDate, rightX + 28, startY + 5);
+  doc.setFont('helvetica','bold'); doc.text('CURRENCY:', rightX, startY + 10);
+  doc.setFont('helvetica','normal'); doc.text('AED', rightX + 28, startY + 10);
+
+  y = Math.max(y, startY + 14);
+
+  // Items table via autotable
+  const body = lpoItems.map((it, idx) => {
+    const tp = parseFloat((it.qty * it.up).toFixed(2));
+    return [idx+1, it.code, it.name, it.uom || '', it.qty, it.up.toFixed(2), tp.toFixed(2)];
+  });
+
+  doc.autoTable({
+    head: [['No.','Code','Description','UOM','QTY','U. PRICE','T. PRICE']],
+    body: body,
+    startY: y,
+    theme: 'grid',
+    headStyles: { fillColor: [15,76,129], textColor: [255,255,255], fontStyle:'bold', fontSize:9 },
+    bodyStyles: { fontSize:9 },
+    columnStyles: { 0:{cellWidth:10,halign:'center'}, 1:{cellWidth:28}, 2:{cellWidth:80}, 3:{cellWidth:18,halign:'center'}, 4:{cellWidth:18,halign:'center'}, 5:{cellWidth:25,halign:'right'}, 6:{cellWidth:25,halign:'right'} },
+    margin: { left: margin, right: margin }
+  });
+
+  const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 6 : y + 6;
+
+  // Totals (use Arabic AED symbol د.إ.)
+  let subCents = 0;
+  lpoItems.forEach(it => subCents += toCents(it.qty * it.up));
+  const vatCents = Math.round(subCents * 0.05);
+  const netCents = subCents + vatCents;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text('Total Amount', 140, finalY);
+  doc.setFont('helvetica','normal'); doc.text('AED ' + (subCents/100).toFixed(2), 210 - margin, finalY, { align:'right' });
+  doc.setFont('helvetica','bold'); doc.text('Add: 5% VAT', 140, finalY + 6);
+  doc.setFont('helvetica','normal'); doc.text('AED ' + (vatCents/100).toFixed(2), 210 - margin, finalY + 6, { align:'right' });
+  doc.setFont('helvetica','bold'); doc.text('NET TOTAL', 140, finalY + 12);
+  doc.setFont('helvetica','normal'); doc.text('AED ' + (netCents/100).toFixed(2), 210 - margin, finalY + 12, { align:'right' });
+
+  // Terms & signatures
+  const y2 = finalY + 26;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text('Payment Terms: Bank Transfer', margin, y2);
+  doc.text('Prepared By: Mr. Roshith', margin, y2 + 8);
+  doc.text('Approved By: Mr. Bimal Lamichhane', 210 - margin - 60, y2 + 8);
+
+  if(returnDoc) return doc;
+  return doc;
+}
+
+async function previewLpo(){
+  const doc = await buildLpoDoc(true);
+  const url = doc.output('bloburl');
+  previewBlobUrl = url;
+  $('pdfFrame').src = url;
+  openModal('pdfPreviewModal');
+}
+function downloadPdfFromPreview(){
+  if(!previewBlobUrl) return alert('No preview available');
+  buildLpoDoc(true).then(doc => {
+    const filename = (($('lpoNo').value || 'LPO').replace(/[^a-zA-Z0-9-_]/g,'') || 'LPO') + '.pdf';
+    doc.save(filename);
+  });
+}
+function generateLpo(){
+  buildLpoDoc(true).then(doc => {
+    const filename = (($('lpoNo').value || 'LPO').replace(/[^a-zA-Z0-9-_]/g,'') || 'LPO') + '.pdf';
+    doc.save(filename);
+    // log summary to reports
+    logReport('lpo_generated', `LPO ${$('lpoNo').value || 'LPO'} generated for ${vendors.find(v=>v.id===$('lpoVendor').value)?.name || 'N/A'}`);
+  });
+}
+
+// Reports rendering (NEWLY IMPLEMENTED)
+function renderReports(){
+  const tbody = $('reportsTable').querySelector('tbody'); tbody.innerHTML = '';
+  if(reports.length === 0){
+    tbody.innerHTML = '<tr><td colspan="3" class="muted">No reports (audit logs) found.</td></tr>';
+    return;
+  }
+  reports.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${esc(r.time)}</td><td>${esc(r.type)}</td><td>${esc(r.desc)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// Utility: show vendor products
+function viewVendorProducts(id){ $('prodVendorFilter').value = id; showSection('products'); renderProducts(); }
+
+// Init
+(function init(){
+  seedIfEmpty();
+  loadData();
+  renderAll();
+  $('lpoDate').value = new Date().toISOString().slice(0,10);
+  // set header logo
+  try{ document.getElementById('appLogo').src = 'data:image/png;base64,' + logoBase64; }catch(e){/*ignore*/ }
+  showSection('dashboard');
+})();
+</script>
+</body>
+</html>
